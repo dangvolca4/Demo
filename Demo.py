@@ -1,31 +1,41 @@
+import os
+import csv
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import openpyxl
-from datetime import datetime
 
-def init_workbook(template_file):
+def init_csv(report_folder):
     """
-    Mở file Excel template và tạo sheet mới dựa trên template.
+    Tạo file CSV trong folder 'Report' với tiêu đề các cột.
     """
-    workbook = openpyxl.load_workbook(template_file)
-    template_sheet = workbook['template']
+    # Đảm bảo folder tồn tại
+    if not os.path.exists(report_folder):
+        os.makedirs(report_folder)
+        print(f"Đã tạo thư mục: {report_folder}")
 
+    # Đặt tên file với ngày và tháng
     now = datetime.now()
-    new_sheet_name = f"So sanh {now.strftime('%d-%m %H-%M')}"  # Định dạng hợp lệ
-    new_sheet = workbook.copy_worksheet(template_sheet)
-    new_sheet.title = new_sheet_name
+    csv_file = os.path.join(report_folder, f"Report_{now.strftime('%d-%m')}.csv")
 
-    return workbook, new_sheet
+    # Tạo file CSV với tiêu đề
+    with open(csv_file, mode='w', encoding='utf-8-sig', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Tên TGDD', 'Giá TGDD', 'URL TGDD', '', 'Tên CellphoneS', 'Giá CellphoneS', 'URL CellphoneS'])
+    
+    print(f"Đã tạo file CSV: {csv_file}")
+    return csv_file
 
-def save_workbook(workbook, filename):
+def save_to_csv(csv_file, data):
     """
-    Lưu file Excel.
+    Ghi dữ liệu vào file CSV.
     """
-    workbook.save(filename)
-    print(f"Đã lưu dữ liệu vào file Excel: {filename}")
+    with open(csv_file, mode='a', encoding='utf-8-sig', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
+
 
 def open_tgdd_page():
     """
@@ -43,9 +53,9 @@ def open_tgdd_page():
 
     return driver
 
-def get_data_tgdd(driver, sheet, start_row):
+def get_data_tgdd(driver):
     """
-    Lấy dữ liệu từ Thegioididong và ghi vào sheet Excel.
+    Lấy dữ liệu từ Thegioididong.
     """
     driver.find_element(By.ID, 'skw').send_keys('iphone 16 promax')
     driver.find_element(By.XPATH, "//button[i[@class='icon-search']]").click()
@@ -55,20 +65,16 @@ def get_data_tgdd(driver, sheet, start_row):
     )
 
     products = driver.find_elements(By.XPATH, "//li[contains(@class, 'item cat42')]")
-
-    for row_index, product in enumerate(products, start=start_row):
+    data = []
+    for product in products:
         try:
             product_name = product.find_element(By.XPATH, ".//h3").text.strip()
             product_price = product.find_element(By.XPATH, ".//strong[@class='price']").text.strip()
             product_url = product.find_element(By.XPATH, ".//a").get_attribute("href")
-
-            sheet.cell(row=row_index, column=1, value=product_name)
-            sheet.cell(row=row_index, column=2, value=product_price)
-            sheet.cell(row=row_index, column=3, value=product_url)
-
-            print(f"Đã ghi TGDD: {product_name}, {product_price}, {product_url}")
+            data.append([product_name, product_price, product_url, '', '', '', ''])
         except Exception as e:
             print(f"Lỗi khi xử lý sản phẩm TGDD: {e}")
+    return data
 
 def open_cellphone_page():
     """
@@ -86,9 +92,9 @@ def open_cellphone_page():
 
     return driver
 
-def get_data_cellphone(driver, sheet, start_row):
+def get_data_cellphone(driver):
     """
-    Lấy dữ liệu từ CellphoneS và ghi vào sheet Excel.
+    Lấy dữ liệu từ CellphoneS.
     """
     driver.find_element(By.ID, 'inp$earch').send_keys('iphone 16 promax')
     driver.find_element(By.XPATH, "//div[@class='input-group-btn']").click()
@@ -98,18 +104,13 @@ def get_data_cellphone(driver, sheet, start_row):
     )
 
     products = driver.find_elements(By.XPATH, '//div[@class="product-info-container product-item"]')
-
-    start_column = 6
-    for row_index, product in enumerate(products, start=start_row):
+    data = []
+    for product in products:
         try:
             product_name = product.find_element(By.XPATH, ".//div[@class='product__name']/h3").text.strip()
             product_price = product.find_element(By.XPATH, './/p[@class="product__price--show"]').text.strip()
             product_url = product.find_element(By.XPATH, ".//a[@class='product__link button__link']").get_attribute("href")
-
-            sheet.cell(row=row_index, column=start_column, value=product_name)
-            sheet.cell(row=row_index, column=start_column + 1, value=product_price)
-            sheet.cell(row=row_index, column=start_column + 2, value=product_url)
-
-            print(f"Đã ghi CellphoneS: {product_name}, {product_price}, {product_url}")
+            data.append(['', '', '', '', product_name, product_price, product_url])
         except Exception as e:
             print(f"Lỗi khi xử lý sản phẩm CellphoneS: {e}")
+    return data
