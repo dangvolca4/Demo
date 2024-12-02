@@ -1,5 +1,5 @@
-import os
 import csv
+import os
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -7,11 +7,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-def init_csv(report_folder):
+def init_csv():
     """
-    Tạo file CSV trong folder 'Report' với tiêu đề các cột.
+    Tạo file CSV cùng cấp với file main.py với tiêu đề các cột.
     """
-    # Đảm bảo folder tồn tại
+    # Đảm bảo thư mục 'report' tồn tại
+    report_folder = 'report'
     if not os.path.exists(report_folder):
         os.makedirs(report_folder)
         print(f"Đã tạo thư mục: {report_folder}")
@@ -20,7 +21,7 @@ def init_csv(report_folder):
     now = datetime.now()
     csv_file = os.path.join(report_folder, f"Report_{now.strftime('%d-%m')}.csv")
 
-    # Tạo file CSV với tiêu đề
+    # Tạo file CSV với tiêu đề cột
     with open(csv_file, mode='w', encoding='utf-8-sig', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Tên TGDD', 'Giá TGDD', 'URL TGDD', '', 'Tên CellphoneS', 'Giá CellphoneS', 'URL CellphoneS'])
@@ -28,14 +29,15 @@ def init_csv(report_folder):
     print(f"Đã tạo file CSV: {csv_file}")
     return csv_file
 
-def save_to_csv(csv_file, data):
+def save_to_csv(csv_file, data, start_column):
     """
-    Ghi dữ liệu vào file CSV.
+    Ghi dữ liệu vào file CSV tại các cột bắt đầu từ start_column.
     """
     with open(csv_file, mode='a', encoding='utf-8-sig', newline='') as file:
         writer = csv.writer(file)
-        writer.writerows(data)
-
+        for row in data:
+            row_data = [''] * start_column + row
+            writer.writerow(row_data)
 
 def open_tgdd_page():
     """
@@ -53,9 +55,9 @@ def open_tgdd_page():
 
     return driver
 
-def get_data_tgdd(driver):
+def get_data_tgdd(driver, csv_file):
     """
-    Lấy dữ liệu từ Thegioididong.
+    Lấy dữ liệu từ Thegioididong và ghi vào file CSV (cột A, B, C).
     """
     driver.find_element(By.ID, 'skw').send_keys('iphone 16 promax')
     driver.find_element(By.XPATH, "//button[i[@class='icon-search']]").click()
@@ -66,15 +68,18 @@ def get_data_tgdd(driver):
 
     products = driver.find_elements(By.XPATH, "//li[contains(@class, 'item cat42')]")
     data = []
+
     for product in products:
         try:
             product_name = product.find_element(By.XPATH, ".//h3").text.strip()
             product_price = product.find_element(By.XPATH, ".//strong[@class='price']").text.strip()
             product_url = product.find_element(By.XPATH, ".//a").get_attribute("href")
-            data.append([product_name, product_price, product_url, '', '', '', ''])
+            data.append([product_name, product_price, product_url])
+            print(f"Đã ghi TGDD: {product_name}, {product_price}, {product_url}")
         except Exception as e:
             print(f"Lỗi khi xử lý sản phẩm TGDD: {e}")
-    return data
+
+    save_to_csv(csv_file, data, start_column=0)
 
 def open_cellphone_page():
     """
@@ -92,9 +97,10 @@ def open_cellphone_page():
 
     return driver
 
-def get_data_cellphone(driver):
+
+def get_data_cellphone(driver, csv_file):
     """
-    Lấy dữ liệu từ CellphoneS.
+    Lấy dữ liệu từ CellphoneS và ghi vào file CSV (cột E, F, G).
     """
     driver.find_element(By.ID, 'inp$earch').send_keys('iphone 16 promax')
     driver.find_element(By.XPATH, "//div[@class='input-group-btn']").click()
@@ -105,12 +111,15 @@ def get_data_cellphone(driver):
 
     products = driver.find_elements(By.XPATH, '//div[@class="product-info-container product-item"]')
     data = []
+
     for product in products:
         try:
             product_name = product.find_element(By.XPATH, ".//div[@class='product__name']/h3").text.strip()
             product_price = product.find_element(By.XPATH, './/p[@class="product__price--show"]').text.strip()
             product_url = product.find_element(By.XPATH, ".//a[@class='product__link button__link']").get_attribute("href")
-            data.append(['', '', '', '', product_name, product_price, product_url])
+            data.append([product_name, product_price, product_url])
+            print(f"Đã ghi CellphoneS: {product_name}, {product_price}, {product_url}")
         except Exception as e:
             print(f"Lỗi khi xử lý sản phẩm CellphoneS: {e}")
-    return data
+
+    save_to_csv(csv_file, data, start_column=4)
